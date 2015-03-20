@@ -87,7 +87,7 @@ func (this *Reudp) loop() {
 		
 		if this.logfunc != nil {
 			this.logfunc("reudp: got %d bytes from %v, err %v", got, who, err)
-			this.logfunc("reudp: data %v\n\n", this.readbuffer[:got])
+			this.logfunc("reudp: data %v", this.readbuffer[:got])
 		}
 		
 		if err != nil {
@@ -117,7 +117,7 @@ func (this *Reudp) process(length int, who *net.UDPAddr) {
 	currentPart := binary.BigEndian.Uint32(this.readbuffer[20:])
 	
 	if this.logfunc != nil {
-		this.logfunc("reudp: process: clientId %v / flags %v / %v bytes / packetId %v / part %v of %v / data %v\n\n", clientId, strconv.FormatUint(uint64(flags), 2), size, packetId, currentPart, parts, this.readbuffer[24:24+size])
+		this.logfunc("reudp: process: clientId %v / flags %v / %v bytes / packetId %v / part %v of %v / data %v", clientId, strconv.FormatUint(uint64(flags), 2), size, packetId, currentPart, parts, this.readbuffer[24:24+size])
 	}
 
 	if flags & _FLAG_ACK == 0 {
@@ -214,7 +214,7 @@ func (this *Reudp) Send(addr *net.UDPAddr, data []byte) error {
 
 func (this *Reudp) send(where *net.UDPAddr, clientId, packetId uint32, flags,size uint16, parts,currentPart uint32, data []byte) error {
 	if this.logfunc != nil {
-		this.logfunc("reudp: send to %v / clientid %v / packetid %v / flags %v / %v bytes / %v of %v / data %v\n\n", where, clientId, packetId, flags, size, currentPart, parts, data)
+		this.logfunc("reudp: send to %v / clientid %v / packetid %v / flags %v / %v bytes / %v of %v / data %v", where, clientId, packetId, flags, size, currentPart, parts, data)
 	}
 	
 	binary.BigEndian.PutUint32(this.writebuffer[0:4], _MARKER)
