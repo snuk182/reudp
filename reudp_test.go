@@ -36,9 +36,10 @@ func err(who *net.UDPAddr, err error) {
 }
 
 func logg(format string, args ...interface{}) {
-	//log.Printf(format, args...)
+	log.Printf(format, args...)
 }
 
+/*
 func TestLittleDataInOut(t *testing.T) {
 	err := in.Send(out.LocalAddr(), testDataSmall)
 	
@@ -69,7 +70,7 @@ func TestBigDataInOut(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-}
+}*/
 
 func TestHugeDataInOut(t *testing.T) {
 	err := in.Send(out.LocalAddr(), testDataHuge)

@@ -4,6 +4,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"strconv"
+	"sync"
 	"net"
 	"fmt"
 	"time"
@@ -24,6 +25,8 @@ const (
 )
 
 type Reudp struct {
+	readCacheSync,writeCacheSync sync.Mutex
+	
 	conn   *net.UDPConn
 	writebuffer,readbuffer [_PACKET_SIZE]byte
 	
@@ -118,9 +121,14 @@ func (this *Reudp) process(length int, who *net.UDPAddr) {
 	}
 
 	if flags & _FLAG_ACK == 0 {
+		this.send(who, clientId, packetId, flags | _FLAG_ACK, 0, parts, currentPart, []byte{})
+		
 		if parts < 2 {
 			this.datafunc(who, this.readbuffer[24:24+size])
 		} else {
+			this.readCacheSync.Lock()	
+			defer this.readCacheSync.Unlock()
+		
 			key := makeCacheKey(clientId, packetId)
 			
 			cache,ok := this.readcache[key]
@@ -129,7 +137,8 @@ func (this *Reudp) process(length int, who *net.UDPAddr) {
 				this.readcache[key] = cache
 			}
 			
-			cache[currentPart-1] = this.readbuffer[24:24+size]
+			cache[currentPart-1] = make([]byte, size)
+			copy(cache[currentPart-1], this.readbuffer[24:24+size])
 			
 			cursor := 0
 			for _,part := range cache {
@@ -147,12 +156,14 @@ func (this *Reudp) process(length int, who *net.UDPAddr) {
 				cursor += len(part)
 			}
 			
-			flags = flags | _FLAG_ACK
+			delete(this.readcache, key)
 			
-			this.send(who, clientId, packetId, flags, size, parts, currentPart, this.readbuffer[0:0])
 			this.datafunc(who, packet)
 		}
 	} else {
+		this.writeCacheSync.Lock()
+		defer this.writeCacheSync.Unlock()
+		
 		key := makeCacheKey(clientId, packetId)
 		cache,ok := this.writecache[key]
 		if ok && cache != nil && len(cache) > int(currentPart-1) {
@@ -217,13 +228,19 @@ func (this *Reudp) send(where *net.UDPAddr, clientId, packetId uint32, flags,siz
 	copy(this.writebuffer[24:], data)
 
 	if flags & _FLAG_ACK == 0 {
+		this.writeCacheSync.Lock()	
+			
 		key := makeCacheKey(clientId, packetId)
 		cache,ok := this.writecache[key]
 		if !ok {
 			cache = make([][]byte, parts)
 			this.writecache[key] = cache
 		}
-		cache[currentPart-1] = this.writebuffer[:size+_HEADER_SIZE]
+		
+		cache[currentPart-1] = make([]byte, _HEADER_SIZE + size)
+		copy(cache[currentPart-1], this.writebuffer[:_HEADER_SIZE + size])
+		
+		this.writeCacheSync.Unlock()
 		
 		go this.waitForAck(where, key, currentPart, 3)
 	}
